@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::coordinator::RoomName;
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum MessageFromServer {
     RoomJoined(Room),
@@ -16,9 +14,9 @@ pub enum MessageFromServer {
 pub enum MessageFromClient {
     ChangeName(String), // -> ChangeNameResult(bool)
     LeaveServer,
-    JoinRoom(RoomName),
+    JoinRoom(String),
     JoinRandomRoom, // -> Room Joined
-    CreateRoom(RoomName),
+    CreateRoom(String),
     LeaveRoom,
     GameAction,
 }
@@ -35,11 +33,11 @@ pub struct Player {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Room {
+pub struct Room {
     id: usize,
     player_1: Player,
     player_2: Player,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct StateDelta {}
+pub struct StateDelta {}

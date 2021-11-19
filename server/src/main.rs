@@ -1,7 +1,6 @@
 mod client;
 mod coordinator;
 mod room;
-mod tcp;
 
 use client::{client_process, ClientContext};
 use coordinator::coordinator_process;

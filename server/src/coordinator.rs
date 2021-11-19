@@ -94,6 +94,7 @@ pub fn coordinator_process(
                 }
                 CoordinatorRequest::LeaveServer => {
                     request.sender().send(CoordinatorResponse::ServerLeft);
+                    clients.remove(&request.sender().id());
                 }
                 CoordinatorRequest::ChangeName(name) => {
                     let client = request.sender();

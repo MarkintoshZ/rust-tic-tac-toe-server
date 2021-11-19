@@ -1,0 +1,11 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+shared = { path = "../shared" }
+lunatic = "0.7.0"
+serde = "1.0.117"
+bincode = "1.3.3"
+rand = "0.8.4"
