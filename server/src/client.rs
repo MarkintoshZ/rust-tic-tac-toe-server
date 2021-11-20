@@ -1,22 +1,20 @@
-use shared::{message::MessageFromClient, serialize::*};
-use std::{
-    io::{BufRead, BufReader, Write},
-    time::Duration,
-};
-
-use bincode;
 use lunatic::{
     net::TcpStream,
     process::{self, Process},
     Mailbox, Request,
 };
 use serde::{Deserialize, Serialize};
+use shared::{message::MessageFromClient, serialize::*};
+use std::{
+    io::{BufRead, BufReader, Write},
+    time::Duration,
+};
 
 use crate::coordinator::{CoordinatorRequest, CoordinatorResponse};
 use crate::room::RoomMessage;
 
 #[derive(Serialize, Deserialize)]
-pub enum ClientMessage {
+pub enum ClientMsg {
     MessageFromClient(MessageFromClient),
     RoomMessage(RoomMessage),
 }
@@ -39,7 +37,7 @@ impl ClientContext {
     }
 }
 
-pub fn client_process(context: ClientContext, mailbox: Mailbox<ClientMessage>) {
+pub fn client_process(context: ClientContext, mailbox: Mailbox<ClientMsg>) {
     let mut stream = context.stream;
     let coordinator = context.coordinator_proc;
 
@@ -89,8 +87,8 @@ pub fn client_process(context: ClientContext, mailbox: Mailbox<ClientMessage>) {
 
     while let Ok(msg) = mailbox.receive() {
         match msg {
-            ClientMessage::MessageFromClient(client_msg) => {}
-            ClientMessage::RoomMessage(room_msg) => {
+            ClientMsg::MessageFromClient(client_msg) => {}
+            ClientMsg::RoomMessage(room_msg) => {
                 write_serialized(room_msg, &mut stream).unwrap();
             }
         }

@@ -1,8 +1,8 @@
-use crate::client::ClientMessage;
+use crate::client::ClientMsg;
 use crate::room::{room_process, RoomMessage};
 
 use lunatic::{
-    process::{spawn_with, Process},
+    process::{self, spawn_with, Process},
     Mailbox, Message, Request, Tag, TransformMailbox,
 };
 use rand::distributions::Alphanumeric;
@@ -18,9 +18,9 @@ pub enum CoordinatorRequest {
     JoinServer,
     LeaveServer,
     ChangeName(String),
-    CreateRoom(RoomName, Process<ClientMessage>),
-    JoinRoom(RoomName, Process<ClientMessage>),
-    JoinRandomRoom(Process<ClientMessage>),
+    CreateRoom(RoomName, Process<ClientMsg>),
+    JoinRoom(RoomName, Process<ClientMsg>),
+    JoinRandomRoom(Process<ClientMsg>),
     LeaveRoom,
 }
 
@@ -38,7 +38,7 @@ pub enum CoordinatorResponse {
 }
 
 #[derive(Debug)]
-struct Client {
+pub struct Client {
     tag: Tag,
     username: String,
     room: Option<Process<RoomMessage>>,
@@ -51,6 +51,8 @@ pub fn coordinator_process(
     let mut rooms = HashMap::<RoomName, (Process<RoomMessage>, RoomSize)>::new();
 
     let mailbox = mailbox.catch_link_panic();
+
+    let this_proc = process::this(&mailbox);
 
     loop {
         println!("clients: {:?}\nrooms: {:?}", clients, rooms);
@@ -112,7 +114,9 @@ pub fn coordinator_process(
                     if let Some(_) = rooms.get(room_name) {
                         request.reply(CoordinatorResponse::RoomAlreadyExist);
                     } else {
-                        let room_proc = spawn_with(room_name.clone(), room_process).unwrap();
+                        let room_proc =
+                            spawn_with((room_name.clone(), this_proc.clone()), room_process)
+                                .unwrap();
                         let room_name = room_name.to_string();
                         rooms.insert(room_name.clone(), (room_proc.clone(), 1));
                         request.reply(CoordinatorResponse::RoomCreated(room_proc.clone()));
@@ -133,9 +137,7 @@ pub fn coordinator_process(
                     }
                 }
                 CoordinatorRequest::JoinRandomRoom(client) => {
-                    if let Some((room_name, (existing, room_size))) =
-                        rooms.iter_mut().find(|(_, (_, s))| *s < 2)
-                    {
+                    if let Some((_, (existing, _))) = rooms.iter_mut().find(|(_, (_, s))| *s < 2) {
                         existing.send(RoomMessage::JoinRoom(client.clone()));
                         request.reply(CoordinatorResponse::RoomJoined(existing.clone()));
                     } else {
@@ -145,7 +147,9 @@ pub fn coordinator_process(
                             .take(6)
                             .map(char::from)
                             .collect();
-                        let room_proc = spawn_with(room_name.clone(), room_process).unwrap();
+                        let room_proc =
+                            spawn_with((room_name.clone(), this_proc.clone()), room_process)
+                                .unwrap();
                         rooms.insert(room_name, (room_proc.clone(), 1));
                         request.reply(CoordinatorResponse::RoomCreated(room_proc.clone()));
                     }
