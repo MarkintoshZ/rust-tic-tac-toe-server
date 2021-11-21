@@ -4,44 +4,32 @@ use lunatic::{
     Mailbox, Request,
 };
 use serde::{Deserialize, Serialize};
-use shared::{message::MessageFromClient, serialize::*};
+use shared::{
+    message::{MessageFromClient, MessageFromServer},
+    serialize::*,
+};
 use std::{
     io::{BufRead, BufReader, Write},
     time::Duration,
 };
 
-use crate::coordinator::{CoordinatorRequest, CoordinatorResponse};
-use crate::room::RoomMessage;
+use crate::coordinator::{CoordinatorMsg, CoordinatorRequest, CoordinatorResponse};
+use crate::room::RoomMsg;
 
 #[derive(Serialize, Deserialize)]
 pub enum ClientMsg {
+    ClientDropped,
     MessageFromClient(MessageFromClient),
-    RoomMessage(RoomMessage),
+    RoomMessage(RoomMsg),
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct ClientContext {
-    stream: TcpStream,
-    coordinator_proc: Process<Request<CoordinatorRequest, CoordinatorResponse>>,
-}
-
-impl ClientContext {
-    pub fn new(
-        stream: TcpStream,
-        coordinator_proc: Process<Request<CoordinatorRequest, CoordinatorResponse>>,
-    ) -> Self {
-        Self {
-            stream,
-            coordinator_proc,
-        }
-    }
-}
-
-pub fn client_process(context: ClientContext, mailbox: Mailbox<ClientMsg>) {
-    let mut stream = context.stream;
-    let coordinator = context.coordinator_proc;
-
+pub fn client_process(
+    (mut stream, coordinator): (TcpStream, Process<CoordinatorMsg>),
+    mailbox: Mailbox<ClientMsg>,
+) {
     println!("client process created for stream: {:?}", stream);
+
+    let mut current_room: Option<Process<RoomMsg>> = None;
 
     // Spawn another actor to handle message reception and deserialization.
     // This actor will send the deserialized client message to the client's
@@ -57,14 +45,18 @@ pub fn client_process(context: ClientContext, mailbox: Mailbox<ClientMsg>) {
             let mut reader = BufReader::new(stream.clone());
             let mut buffer = String::new();
 
-            while let Ok(size) = reader.read_line(&mut buffer) {
-                println!("read something: {:}", buffer);
+            loop {
+                let size = reader.read_line(&mut buffer).unwrap();
+                println!("read size of {}: {}", size, buffer);
                 if size == 0 {
+                    client.send(ClientMsg::ClientDropped);
                     break;
                 }
 
-                if let Ok(msg) = read_serialized(buffer.as_bytes()) {
-                    client.send(msg);
+                let msg: MessageFromClient = read_serialized(buffer.as_bytes()).unwrap();
+                client.send(ClientMsg::MessageFromClient(msg.clone()));
+                if let MessageFromClient::LeaveServer = msg {
+                    break;
                 }
 
                 buffer.clear();
@@ -73,21 +65,93 @@ pub fn client_process(context: ClientContext, mailbox: Mailbox<ClientMsg>) {
     )
     .unwrap();
 
-    let username = if let CoordinatorResponse::ServerJoined(username) =
-        coordinator.request(CoordinatorRequest::JoinServer).unwrap()
-    {
-        username
-    } else {
-        unreachable!()
-    };
-
-    println!("generated username: {:?}", username);
-
-    stream.write((username + "\n").as_bytes()).unwrap();
-
     while let Ok(msg) = mailbox.receive() {
         match msg {
-            ClientMsg::MessageFromClient(client_msg) => {}
+            ClientMsg::ClientDropped => {
+                coordinator
+                    .request(CoordinatorRequest::LeaveServer)
+                    .unwrap();
+                break;
+            }
+            ClientMsg::MessageFromClient(client_msg) => match client_msg {
+                MessageFromClient::JoinServer(username) => {
+                    match coordinator
+                        .request(CoordinatorRequest::JoinServer(username))
+                        .unwrap()
+                    {
+                        CoordinatorResponse::ServerJoined => {
+                            write_serialized(MessageFromServer::ServerJoined, &mut stream).unwrap();
+                        }
+                        CoordinatorResponse::UsernameAlreadyTaken => {
+                            write_serialized(MessageFromServer::UsernameAlreadyTaken, &mut stream)
+                                .unwrap();
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                MessageFromClient::LeaveServer => break,
+                MessageFromClient::CreateRoom(room_name) => {
+                    match coordinator
+                        .request(CoordinatorRequest::CreateRoom(
+                            room_name,
+                            process::this(&mailbox),
+                        ))
+                        .unwrap()
+                    {
+                        CoordinatorResponse::RoomCreated(room_proc) => {
+                            if current_room.is_some() {
+                                panic!("client is creating a new room when it is already in a existing room")
+                            };
+                            current_room = Some(room_proc);
+                            write_serialized(MessageFromServer::RoomCreated, &mut stream).unwrap();
+                        }
+                        CoordinatorResponse::RoomNameAlreadyTaken => {
+                            write_serialized(MessageFromServer::RoomNameAlreadyTaken, &mut stream)
+                                .unwrap();
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                MessageFromClient::JoinRoom(room_name) => {
+                    match coordinator
+                        .request(CoordinatorRequest::JoinRoom(
+                            room_name,
+                            process::this(&mailbox),
+                        ))
+                        .unwrap()
+                    {
+                        CoordinatorResponse::RoomJoined(room_proc) => {
+                            current_room = Some(room_proc);
+                            write_serialized::<MessageFromServer, TcpStream>(
+                                MessageFromServer::RoomJoined,
+                                &mut stream,
+                            )
+                            .unwrap();
+                        }
+                        CoordinatorResponse::RoomFull => {
+                            write_serialized(MessageFromServer::RoomFull, &mut stream).unwrap();
+                        }
+                        CoordinatorResponse::RoomDoesNotExist => {
+                            write_serialized(MessageFromServer::RoomDoesNotExist, &mut stream)
+                                .unwrap();
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                MessageFromClient::LeaveRoom => {
+                    coordinator.request(CoordinatorRequest::LeaveRoom).unwrap();
+                }
+                MessageFromClient::GameAction(action) => {
+                    match &current_room {
+                        Some(room) => {
+                            room.send(RoomMsg::GameAction(action));
+                        }
+                        None => panic!(
+                            "client is creating a new room when it is already in a existing room"
+                        ),
+                    };
+                }
+            },
             ClientMsg::RoomMessage(room_msg) => {
                 write_serialized(room_msg, &mut stream).unwrap();
             }

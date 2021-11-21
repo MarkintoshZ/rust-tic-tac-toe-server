@@ -4,13 +4,14 @@ use std::time::Duration;
 
 use crate::coordinator::{CoordinatorRequest, CoordinatorResponse};
 use crate::{client::ClientMsg, coordinator::Client};
+use shared::message::GameAction;
 
 #[derive(Serialize, Deserialize)]
-pub enum RoomMessage {
+pub enum RoomMsg {
     JoinRoom(Process<ClientMsg>),
     LeaveRoom,
     Drop(u128),
-    StateChange(StateChange),
+    GameAction(GameAction),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -26,7 +27,7 @@ pub trait Room {
 }
 
 pub struct Context {
-    room_process: Process<RoomMessage>,
+    room_process: Process<RoomMsg>,
 }
 
 impl Context {
@@ -68,7 +69,7 @@ pub fn room_process(
         String,
         Process<Request<CoordinatorRequest, CoordinatorResponse>>,
     ),
-    mailbox: Mailbox<RoomMessage>,
+    mailbox: Mailbox<RoomMsg>,
 ) {
     while let Ok(message) = mailbox.receive() {}
 }

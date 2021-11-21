@@ -18,7 +18,7 @@ pub fn read_serialized<'de, D>(bytes: &'de [u8]) -> bincode::Result<D>
 where
     D: Deserialize<'de>,
 {
-    let result = bincode::deserialize::<'de, D>(&bytes[..bytes.len() - 1])?;
+    let result = bincode::deserialize::<'de, D>(&bytes)?;
     Ok(result)
 }
 

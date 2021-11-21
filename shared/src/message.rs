@@ -1,24 +1,38 @@
 use serde::{Deserialize, Serialize};
 
+pub type Username = String;
+pub type RoomName = String;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum MessageFromServer {
-    RoomJoined(Room),
+    // Server related messages
+    ServerJoined,
+    UsernameAlreadyTaken,
+
+    // Room related messages
+    RoomJoined,
     RoomFull,
+    RoomDoesNotExist,
+    RoomCreated,
+    RoomNameAlreadyTaken,
+
+    // Game state broadcast messages
     StateChanged(StateDelta),
-    StateReset,
-    PlayerWon(Player),
-    ChangeNameResult(bool),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum MessageFromClient {
-    ChangeName(String), // -> ChangeNameResult(bool)
-    LeaveServer,
-    JoinRoom(String),
-    JoinRandomRoom, // -> Room Joined
-    CreateRoom(String),
+    // Server related messages
+    JoinServer(Username), // -> ServerJoined or UsernameAlreadyTaken
+    LeaveServer,          // -> no response
+
+    // Room related messages
+    JoinRoom(RoomName), // -> RoomJoined or RoomFull or RoomDoesNotExist
+    CreateRoom(String), // -> RoomCreated or RoomNameAlreadyTaken
     LeaveRoom,
-    GameAction,
+
+    // Game-specific messages
+    GameAction(GameAction),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
