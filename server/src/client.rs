@@ -47,15 +47,16 @@ pub fn client_process(
 
             loop {
                 let size = reader.read_line(&mut buffer).unwrap();
-                println!("read size of {}: {}", size, buffer);
+                println!("read size of {}: {:?}", size, buffer);
                 if size == 0 {
                     client.send(ClientMsg::ClientDropped);
                     break;
                 }
 
                 let msg: MessageFromClient = read_serialized(buffer.as_bytes()).unwrap();
-                client.send(ClientMsg::MessageFromClient(msg.clone()));
-                if let MessageFromClient::LeaveServer = msg {
+                let should_break = matches!(msg, MessageFromClient::LeaveServer);
+                client.send(ClientMsg::MessageFromClient(msg));
+                if should_break {
                     break;
                 }
 
@@ -139,6 +140,7 @@ pub fn client_process(
                     }
                 }
                 MessageFromClient::LeaveRoom => {
+                    current_room = None;
                     coordinator.request(CoordinatorRequest::LeaveRoom).unwrap();
                 }
                 MessageFromClient::GameAction(action) => {

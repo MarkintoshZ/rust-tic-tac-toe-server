@@ -27,8 +27,8 @@ pub enum MessageFromClient {
     LeaveServer,          // -> no response
 
     // Room related messages
-    JoinRoom(RoomName), // -> RoomJoined or RoomFull or RoomDoesNotExist
-    CreateRoom(String), // -> RoomCreated or RoomNameAlreadyTaken
+    JoinRoom(RoomName),   // -> RoomJoined or RoomFull or RoomDoesNotExist
+    CreateRoom(RoomName), // -> RoomCreated or RoomNameAlreadyTaken
     LeaveRoom,
 
     // Game-specific messages

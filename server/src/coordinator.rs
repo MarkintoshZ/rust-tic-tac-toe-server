@@ -110,15 +110,19 @@ pub fn coordinator_process(mailbox: Mailbox<CoordinatorMsg>) -> () {
                         room_proc.send(RoomMsg::JoinRoom(client.clone()));
                         let room_name = room_name.to_string();
                         rooms.insert(room_name.clone(), (room_proc.clone(), 1));
+                        clients.get_mut(&request.sender().id()).unwrap().room =
+                            Some(room_proc.clone());
                         request.reply(CoordinatorResponse::RoomCreated(room_proc.clone()));
                     }
                 }
                 CoordinatorRequest::JoinRoom(room_name, client) => {
-                    if let Some((existing_room, room_size)) = rooms.get_mut(&room_name.clone()) {
+                    if let Some((room_proc, room_size)) = rooms.get_mut(&room_name.clone()) {
                         if *room_size < 2 {
                             *room_size += 1;
-                            existing_room.send(RoomMsg::JoinRoom(client.clone()));
-                            request.reply(CoordinatorResponse::RoomJoined(existing_room.clone()));
+                            room_proc.send(RoomMsg::JoinRoom(client.clone()));
+                            clients.get_mut(&request.sender().id()).unwrap().room =
+                                Some(room_proc.clone());
+                            request.reply(CoordinatorResponse::RoomJoined(room_proc.clone()));
                         } else {
                             request.reply(CoordinatorResponse::RoomFull);
                             return;
@@ -128,7 +132,7 @@ pub fn coordinator_process(mailbox: Mailbox<CoordinatorMsg>) -> () {
                     }
                 }
                 CoordinatorRequest::LeaveRoom => {
-                    let client = clients.get(&request.sender().id()).unwrap();
+                    let mut client = clients.get_mut(&request.sender().id()).unwrap();
                     let room_proc = client.room.as_ref().unwrap();
                     room_proc.send(RoomMsg::LeaveRoom);
                     let room_to_remove = if let Some((room_name, (_, room_size))) =
@@ -143,6 +147,7 @@ pub fn coordinator_process(mailbox: Mailbox<CoordinatorMsg>) -> () {
                     } else {
                         None
                     };
+                    client.room = None;
                     if let Some(room_name) = room_to_remove {
                         rooms.remove(&room_name);
                     }
