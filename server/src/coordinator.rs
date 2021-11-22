@@ -100,23 +100,24 @@ pub fn coordinator_process<T: Room>(mailbox: Mailbox<CoordinatorMsg>) -> () {
                 }
                 CoordinatorRequest::LeaveServer => {
                     let mut client = clients.get_mut(&request.sender().id()).unwrap();
-                    let room_proc = client.room.as_ref().unwrap();
-                    room_proc.send(RoomMsg::Drop(client.username.clone()));
-                    let room_to_remove = if let Some((room_name, (_, room_size))) =
-                        rooms.iter_mut().find(|(_, (p, _))| *p == *room_proc)
-                    {
-                        *room_size -= 1;
-                        if *room_size == 0 {
-                            Some(room_name.to_string())
+                    if let Some(room_proc) = client.room.as_ref() {
+                        room_proc.send(RoomMsg::Drop(client.username.clone()));
+                        let room_to_remove = if let Some((room_name, (_, room_size))) =
+                            rooms.iter_mut().find(|(_, (p, _))| *p == *room_proc)
+                        {
+                            *room_size -= 1;
+                            if *room_size == 0 {
+                                Some(room_name.to_string())
+                            } else {
+                                None
+                            }
                         } else {
                             None
+                        };
+                        client.room = None;
+                        if let Some(room_name) = room_to_remove {
+                            rooms.remove(&room_name);
                         }
-                    } else {
-                        None
-                    };
-                    client.room = None;
-                    if let Some(room_name) = room_to_remove {
-                        rooms.remove(&room_name);
                     }
                     clients.remove(&request.sender().id());
                     request.reply(CoordinatorResponse::ServerLeft);

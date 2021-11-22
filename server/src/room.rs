@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use crate::client::ClientMsg;
 use crate::coordinator::{CoordinatorRequest, CoordinatorResponse};
-use shared::message::{GameAction, MessageFromClient, MessageFromServer, Username};
+use shared::message::{GameAction, MessageFromServer, Username};
 
 #[derive(Serialize, Deserialize)]
 pub enum RoomMsg {
