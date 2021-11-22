@@ -145,7 +145,8 @@ pub fn coordinator_process<T: Room>(mailbox: Mailbox<CoordinatorMsg>) -> () {
                 }
                 CoordinatorRequest::JoinRoom(room_name, client_proc) => {
                     if let Some((room_proc, room_size)) = rooms.get_mut(&room_name.clone()) {
-                        if *room_size < 2 {
+                        let max_client = T::max_client();
+                        if max_client.is_none() || *room_size < max_client.unwrap() {
                             *room_size += 1;
                             room_proc.send(RoomMsg::JoinRoom(Client::new(
                                 clients
