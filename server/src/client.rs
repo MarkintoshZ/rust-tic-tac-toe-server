@@ -5,7 +5,7 @@ use lunatic::{
 };
 use serde::{Deserialize, Serialize};
 use shared::{
-    message::{MessageFromClient, MessageFromServer},
+    message::{MessageFromClient, MessageFromServer, Username},
     serialize::*,
 };
 use std::{
@@ -14,13 +14,13 @@ use std::{
 };
 
 use crate::coordinator::{CoordinatorMsg, CoordinatorRequest, CoordinatorResponse};
-use crate::room::RoomMsg;
+use crate::room::{Client, RoomMsg};
 
 #[derive(Serialize, Deserialize)]
 pub enum ClientMsg {
     ClientDropped,
     MessageFromClient(MessageFromClient),
-    RoomMessage(RoomMsg),
+    RoomMessage(MessageFromServer),
 }
 
 pub fn client_process(
@@ -30,6 +30,8 @@ pub fn client_process(
     println!("client process created for stream: {:?}", stream);
 
     let mut current_room: Option<Process<RoomMsg>> = None;
+
+    let mut username: Option<Username> = None;
 
     // Spawn another actor to handle message reception and deserialization.
     // This actor will send the deserialized client message to the client's
@@ -47,7 +49,6 @@ pub fn client_process(
 
             loop {
                 let size = reader.read_line(&mut buffer).unwrap();
-                println!("read size of {}: {:?}", size, buffer);
                 if size == 0 {
                     client.send(ClientMsg::ClientDropped);
                     break;
@@ -75,12 +76,13 @@ pub fn client_process(
                 break;
             }
             ClientMsg::MessageFromClient(client_msg) => match client_msg {
-                MessageFromClient::JoinServer(username) => {
+                MessageFromClient::JoinServer(username_) => {
                     match coordinator
-                        .request(CoordinatorRequest::JoinServer(username))
+                        .request(CoordinatorRequest::JoinServer(username_.clone()))
                         .unwrap()
                     {
                         CoordinatorResponse::ServerJoined => {
+                            username = Some(username_);
                             write_serialized(MessageFromServer::ServerJoined, &mut stream).unwrap();
                         }
                         CoordinatorResponse::UsernameAlreadyTaken => {
@@ -141,12 +143,17 @@ pub fn client_process(
                 }
                 MessageFromClient::LeaveRoom => {
                     current_room = None;
-                    coordinator.request(CoordinatorRequest::LeaveRoom).unwrap();
+                    coordinator
+                        .request(CoordinatorRequest::LeaveRoom(process::this(&mailbox)))
+                        .unwrap();
                 }
                 MessageFromClient::GameAction(action) => {
                     match &current_room {
                         Some(room) => {
-                            room.send(RoomMsg::GameAction(action));
+                            room.send(RoomMsg::Action(
+                                Client::new(username.clone().unwrap(), process::this(&mailbox)),
+                                action,
+                            ));
                         }
                         None => panic!(
                             "client is creating a new room when it is already in a existing room"
