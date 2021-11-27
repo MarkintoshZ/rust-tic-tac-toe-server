@@ -2,7 +2,7 @@ use crate::client::ClientMsg;
 use crate::room::{room_process, Client, Room, RoomMsg};
 
 use lunatic::{
-    process::{self, spawn_with, Process},
+    process::{spawn_with, Process},
     Mailbox, Message, Request, Tag, TransformMailbox,
 };
 use serde::{Deserialize, Serialize};
@@ -55,8 +55,6 @@ pub fn coordinator_process<T: Room>(mailbox: Mailbox<CoordinatorMsg>) -> () {
 
     let mailbox = mailbox.catch_link_panic();
 
-    let this_proc = process::this(&mailbox);
-
     loop {
         println!("\nclients: {:?}\nrooms: {:?}", clients, rooms);
         let message = mailbox.receive();
@@ -66,7 +64,6 @@ pub fn coordinator_process<T: Room>(mailbox: Mailbox<CoordinatorMsg>) -> () {
             let id =
                 if let Some((id, client)) = clients.iter().find(|(_, client)| client.tag == tag) {
                     if let Some(room) = &client.room {
-                        println!("Send drop msg to room");
                         let username = clients.get(id).unwrap().username.clone();
                         room.send(RoomMsg::Drop(username));
                     }
@@ -126,9 +123,7 @@ pub fn coordinator_process<T: Room>(mailbox: Mailbox<CoordinatorMsg>) -> () {
                     if let Some(_) = rooms.get(room_name) {
                         request.reply(CoordinatorResponse::RoomNameAlreadyTaken);
                     } else {
-                        let room_proc =
-                            spawn_with((room_name.clone(), this_proc.clone()), room_process::<T>)
-                                .unwrap();
+                        let room_proc = spawn_with(room_name.clone(), room_process::<T>).unwrap();
                         room_proc.send(RoomMsg::JoinRoom(Client::new(
                             clients
                                 .get_mut(&request.sender().id())

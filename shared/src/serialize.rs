@@ -8,9 +8,14 @@ where
     S: Serialize,
     W: Write,
 {
-    w.write(&bincode::serialize(&s)?)?;
-    w.write(&"\n".as_bytes())?;
+    w.write(&serialize(&s)?)?;
     Ok(())
+}
+
+pub fn serialize<S: Serialize>(s: S) -> bincode::Result<Vec<u8>> {
+    let mut bytes = bincode::serialize(&s)?;
+    bytes.append(&mut vec!['\n' as u8]);
+    Ok(bytes)
 }
 
 /// deserialize object from a byte array with a trailing newline character.
@@ -18,8 +23,15 @@ pub fn read_serialized<'de, D>(bytes: &'de [u8]) -> bincode::Result<D>
 where
     D: Deserialize<'de>,
 {
-    let result = bincode::deserialize::<'de, D>(&bytes)?;
+    let result = deserialize(bytes)?;
     Ok(result)
+}
+
+pub fn deserialize<'de, D>(bytes: &'de [u8]) -> bincode::Result<D>
+where
+    D: Deserialize<'de>,
+{
+    bincode::deserialize(bytes)
 }
 
 #[cfg(test)]

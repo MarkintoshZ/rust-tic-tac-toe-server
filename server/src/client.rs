@@ -1,7 +1,7 @@
 use lunatic::{
     net::TcpStream,
     process::{self, Process},
-    Mailbox, Request,
+    Mailbox,
 };
 use serde::{Deserialize, Serialize};
 use shared::{
@@ -9,7 +9,7 @@ use shared::{
     serialize::*,
 };
 use std::{
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader},
     time::Duration,
 };
 
@@ -48,20 +48,25 @@ pub fn client_process(
             let mut buffer = String::new();
 
             loop {
-                let size = reader.read_line(&mut buffer).unwrap();
-                if size == 0 {
+                if let Ok(size) = reader.read_line(&mut buffer) {
+                    if size == 0 {
+                        client.send(ClientMsg::ClientDropped);
+                        break;
+                    }
+
+                    let msg: MessageFromClient = read_serialized(buffer.as_bytes()).unwrap();
+                    let should_break = matches!(msg, MessageFromClient::LeaveServer);
+                    client.send(ClientMsg::MessageFromClient(msg));
+                    if should_break {
+                        break;
+                    }
+
+                    buffer.clear();
+                } else {
+                    // read timeout
                     client.send(ClientMsg::ClientDropped);
                     break;
                 }
-
-                let msg: MessageFromClient = read_serialized(buffer.as_bytes()).unwrap();
-                let should_break = matches!(msg, MessageFromClient::LeaveServer);
-                client.send(ClientMsg::MessageFromClient(msg));
-                if should_break {
-                    break;
-                }
-
-                buffer.clear();
             }
         },
     )
@@ -70,10 +75,13 @@ pub fn client_process(
     while let Ok(msg) = mailbox.receive() {
         match msg {
             ClientMsg::ClientDropped => {
-                coordinator
-                    .request(CoordinatorRequest::LeaveServer)
-                    .unwrap();
-                break;
+                if username.is_some() {
+                    coordinator
+                        .request(CoordinatorRequest::LeaveServer)
+                        .unwrap();
+                }
+                // do not go though the regular leave server procedure
+                return;
             }
             ClientMsg::MessageFromClient(client_msg) => match client_msg {
                 MessageFromClient::JoinServer(username_) => {
@@ -155,9 +163,7 @@ pub fn client_process(
                                 action,
                             ));
                         }
-                        None => panic!(
-                            "client is creating a new room when it is already in a existing room"
-                        ),
+                        None => panic!("client cannot execute game actions before joining a room"),
                     };
                 }
             },
@@ -167,7 +173,10 @@ pub fn client_process(
         }
     }
 
-    coordinator
-        .request(CoordinatorRequest::LeaveServer)
-        .unwrap();
+    // only request leave server if client has joined server in the first place
+    if username.is_some() {
+        coordinator
+            .request(CoordinatorRequest::LeaveServer)
+            .unwrap();
+    }
 }

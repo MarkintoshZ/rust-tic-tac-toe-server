@@ -18,13 +18,12 @@ A simple websocket game server written in rust for the game tic tac toe inspired
 
 - Server
   - Systems
-    - Websocket layer
-    - object delta
-    - (de)serialization
+    - object delta (dipa)
+    - (de)serialization (bincode)
     - Lunatic process spawning for each room
     - Message passing between processes
   - Server Logic
-    - Room creation, deletion, listing
+    - Room creation, deletion
     - Game State Management (in game, gameover)
     - Game action handling
 
@@ -32,7 +31,7 @@ A simple websocket game server written in rust for the game tic tac toe inspired
   - Connect to server
   - (de)serialization
   - display board
-  - hanlde keyboard input
+  - handle keyboard input
 
 
 ## Possible Challenges
