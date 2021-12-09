@@ -12,7 +12,7 @@ Mark Zhang (zz91)
 
 ## Summary
 
-A simple websocket game server written in rust for the game tic tac toe inspired by [Colyseus](https://github.com/colyseus/colyseus). The server will be using the actor concurrency model powered by [Lunatic](https://github.com/lunatic-solutions/lunatic) and the server code will be compiled to WASM for safer sandboxing. Each game room will be handled in a dedicated Lunatic process. State delta will be computed and sent to the client instead of the whole game state using [dipa](https://github.com/chinedufn/dipa).
+A simple multiplayer game server written in rust for the game tic tac toe inspired by [Colyseus](https://github.com/colyseus/colyseus). The server uses the actor concurrency model powered by [Lunatic](https://github.com/lunatic-solutions/lunatic) and the server code will be compiled to WASM for safer sandboxing. Each game room will be handled in a dedicated Lunatic process. State delta will be computed and sent to the client instead of the whole game state using [dipa](https://github.com/chinedufn/dipa).
 
 ## System Overview
 
@@ -42,5 +42,6 @@ A simple websocket game server written in rust for the game tic tac toe inspired
 ## References
 
 - [Lunatic](https://github.com/lunatic-solutions/lunatic) concurrency runtime
-- [dipa](https://github.com/chinedufn/dipa) for struct deltas
+- [Lunatic.Chat](https://github.com/lunatic-solutions/chat) Lunatic demo chat app
+- [dipa](https://github.com/chinedufn/dipa) library for computing and applying object deltas
 - [Colyseus](https://github.com/colyseus/colyseus) (a node.js game server) for inspiration
