@@ -74,6 +74,8 @@ impl GameState {
         self.turn = 0;
     }
 
+    /// Place node at given x y coordinate by the given username
+    /// The winner will be automatically checked and updated
     pub fn place_node(&mut self, x: usize, y: usize, username: &Username) {
         if self.board[x][y] == -1 {
             self.board[x][y] = (self.players[1] == *username) as i8;
@@ -113,5 +115,78 @@ impl GameState {
             }
         }
         return true;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    const PLAYERS: [&str; 2] = ["player_a", "player_b"];
+
+    #[test]
+    fn init_game() {
+        let game = GameState::default();
+        assert_eq!(game.players.len(), 0);
+        assert_eq!(game.board, [[-1, -1, -1], [-1, -1, -1], [-1, -1, -1]]);
+        assert_eq!(game.turn, 0);
+        assert_eq!(game.started, false);
+        assert_eq!(game.winner, None);
+    }
+
+    #[test]
+    fn horizontal_win() {
+        let mut game = GameState::default();
+        game.players.extend(PLAYERS.iter().map(|s| s.to_string()));
+        for row in 0..3 {
+            for (i, player) in PLAYERS.iter().enumerate() {
+                game.place_node(row, 0, &player.to_string());
+                game.place_node(row, 1, &player.to_string());
+                assert!(game.winner.is_none());
+                game.place_node(row, 2, &player.to_string());
+                assert_eq!(game.winner.unwrap_or(9i8), i as i8);
+
+                game.reset_game();
+            }
+        }
+    }
+
+    #[test]
+    fn vertical_win() {
+        let mut game = GameState::default();
+        game.players.extend(PLAYERS.iter().map(|s| s.to_string()));
+        for col in 0..3 {
+            for (i, player) in PLAYERS.iter().enumerate() {
+                game.place_node(0, col, &player.to_string());
+                game.place_node(1, col, &player.to_string());
+                assert!(game.winner.is_none());
+                game.place_node(2, col, &player.to_string());
+                assert_eq!(game.winner.unwrap_or(9i8), i as i8);
+
+                game.reset_game();
+            }
+        }
+    }
+
+    #[test]
+    fn diagnal_win() {
+        let mut game = GameState::default();
+        game.players.extend(PLAYERS.iter().map(|s| s.to_string()));
+        for (i, player) in PLAYERS.iter().enumerate() {
+            game.place_node(0, 0, &player.to_string());
+            game.place_node(1, 1, &player.to_string());
+            assert!(game.winner.is_none());
+            game.place_node(2, 2, &player.to_string());
+            assert_eq!(game.winner.unwrap_or(9i8), i as i8);
+
+            game.reset_game();
+
+            game.place_node(2, 2, &player.to_string());
+            game.place_node(1, 1, &player.to_string());
+            assert!(game.winner.is_none());
+            game.place_node(0, 0, &player.to_string());
+            assert_eq!(game.winner.unwrap_or(9i8), i as i8);
+
+            game.reset_game();
+        }
     }
 }
