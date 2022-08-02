@@ -2,6 +2,9 @@
 
 A project for CS128H 2021
 
+### Video Demo (Don't mind the clickbait thumbnail)
+[![Video Demo](https://i9.ytimg.com/vi/4xsORjs0w3U/maxresdefault.jpg?time=1659464700000&sqp=CPzXpZcG&rs=AOn4CLDnRRFEE8cMkHw23wiiTWLVU9fJPg)](https://www.youtube.com/watch?v=4xsORjs0w3U)
+
 ## Team Name
 
 MK
@@ -45,3 +48,8 @@ A simple multiplayer game server written in rust for the game tic tac toe inspir
 - [Lunatic.Chat](https://github.com/lunatic-solutions/chat) Lunatic demo chat app
 - [dipa](https://github.com/chinedufn/dipa) library for computing and applying object deltas
 - [Colyseus](https://github.com/colyseus/colyseus) (a node.js game server) for inspiration
+
+## License
+MIT
+
+### Feel free to 🌟 to show some love!
